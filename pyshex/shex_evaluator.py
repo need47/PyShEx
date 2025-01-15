@@ -307,8 +307,11 @@ def evaluate_cli(argv: Optional[Union[str, List[str]]] = None, prog: Optional[st
             (opts.printsparql or opts.printsparqlresults or opts.graphname is not None or opts.persistbnodes):
         print("Error: printsparql, pringsparqlresults, graphname and persistbnodes are SPARQL only",
               file=sys.stderr)
+
+    is_gz = opts.rdf.endswith(".gz")
+
     if not opts.format:
-        opts.format = guess_format(opts.rdf)
+        opts.format = guess_format(opts.rdf.removesuffix(".gz") if is_gz else opts.rdf)
     if not opts.format:
         print('Error: Cannot determine RDF format from file name - use "--format" option', file=sys.stderr)
         return 3
@@ -328,7 +331,12 @@ def evaluate_cli(argv: Optional[Union[str, List[str]]] = None, prog: Optional[st
         if '\n' in opts.rdf or '\r' in opts.rdf:
             g.parse(data=opts.rdf, format=opts.format)
         else:
-            g.parse(opts.rdf, format=opts.format)
+            if is_gz:
+                import gzip
+                with gzip.open(opts.rdf, "rt") as f:
+                    g.parse(file=f, format=opts.format)
+            else:
+                g.parse(opts.rdf, format=opts.format)
 
     if not (opts.focus or opts.allsubjects or opts.sparql):
         print('Error: You must specify one or more graph focus nodes, supply a SPARQL query, or use the "-A" option',
